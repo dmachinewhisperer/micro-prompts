@@ -1,0 +1,82 @@
+#ifndef GOOGLE_H_
+#define GOOGLE_H_
+#include "cJSON.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "llm-client.h"
+/**
+API endpoint
+const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent';
+
+// Request body structure
+const request = {
+  contents: [{
+    parts: [
+      {
+        text: "Your prompt here"
+      },
+      //Optional image part: provide image uri
+      {"file_data":
+            {"mime_type": "image/jpeg", "file_uri": '$file_uri'}
+        },
+      // Optional image part: provide image file path
+      {
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: "BASE64_ENCODED_IMAGE_DATA"
+        }
+      }
+    ]
+  }],
+  generationConfig: {
+    temperature: 0.7,
+    topK: 40,
+    topP: 0.95,
+    maxOutputTokens: 2048,
+  }
+};
+
+ */
+
+
+//char *build_google_request(LLMClientConfig *config) 
+//check if config.provider is google
+//check if feature specified in config->feature is implemented by google provider client. use the 
+//provider_google_gemini struct to verify. else nothig can be done. 
+//build the request json in accordance with the specified feature. the payload format is provided in the json below:
+/**
+const request = {
+  contents: [{
+    parts: [
+      {
+        text: "Your prompt here"
+      },
+      //Optional image part: add if config.feature is TEXT_WITH_REMOTE_FILE
+      {"file_data":
+            {"mime_type": "image/jpeg", "file_uri": '$file_uri'}
+        },
+      // Optional image part: add if config.feature is TEXT_WITH_REMOTE_FILE
+      //the data will be pulled it later using a function like (char *)convert_to_base64(file_dir)
+      //dont worry about it yet. 
+      {
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: "BASE64_ENCODED_IMAGE_DATA"
+        }
+      }
+    ]
+  }],
+  generationConfig: {
+    temperature: 0.7,
+    topK: 40,
+    topP: 0.95,
+    maxOutputTokens: 2048,
+  }
+};
+*/
+//note: use CJson for building jsons. return the constructed json string. 
+
+//char *parse_google_response(char *response);
+
