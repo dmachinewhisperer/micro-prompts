@@ -1,11 +1,10 @@
 #ifdef ESP32
-    #include <WiFi.h>
-    #include <HTTPClient.h>
+    //#include <WiFi.h>
+    //#include <HTTPClient.h>
 #elif defined(ESP8266)
-    #include <ESP8266WiFi.h>
-    #include <ESP8266HTTPClient.h>
-#else
-    #error "Platform is Neither ESP32 nor ESP8266. Build Aborted!"
+    //#include <ESP8266WiFi.h>
+    ///#include <WiFiClientSecure.h>
+    //#include <ESP8266HTTPClient.h>
 #endif
 
 #include "LLMClients.h"
@@ -18,9 +17,15 @@ LLMClient::LLMClient() {
 }
 
 void LLMClient::begin(const String &apiKey, const String &modelName, ProviderName provider) {
-    config.llmconfig.api_key = apiKey.c_str();  
-    config.llmconfig.model_name = modelName.c_str();
-    config.llmconfig.provider = provider;
+
+    strncpy(api_key_buffer, apiKey.c_str(), API_KEY_MAX_LEN - 1);
+    api_key_buffer[API_KEY_MAX_LEN - 1] = '\0';
+    strncpy(model_name_buffer, modelName.c_str(), MODEL_NAME_MAX_LEN - 1);
+    model_name_buffer[MODEL_NAME_MAX_LEN - 1] = '\0';
+
+    config.llmconfig.api_key = api_key_buffer;
+    config.llmconfig.model_name = model_name_buffer;
+    config.llmconfig.provider = provider;    
 }
 
 void LLMClient::setTemperature(float temp) {
@@ -41,39 +46,45 @@ String LLMClient::prompt_google_gemini() {
                                  config.llmconfig.model_name + ":generateContent?key=" + config.llmconfig.api_key;
 
     #ifdef ESP32
-        HTTPClient httpclient;
-        httpclient.begin(google_generate_url);
+        httpClient.begin(google_generate_url);
     #elif defined(ESP8266)
-        HTTPClient httpclient;
-        //wifiClient.setInsecure();
-        httpclient.begin(wifiClient, google_generate_url);
+        wifiClient.setInsecure();
+        httpClient.begin(wifiClient, google_generate_url);
     #endif
 
     // build_google_request() returns char* (C-style)
+    httpClient.addHeader("Content-Type", "application/json");
     String request = String(build_google_request(&config));
     if (request.length() == 0) {
         Serial.println("Failed to build request");
-        httpclient.end();
+        httpClient.end();
         return String();
     }
+    Serial.println(google_generate_url);
+    Serial.println(request);
 
     // Make the POST request
-    int httpCode = httpclient.POST(request);
+    int httpCode = httpClient.POST(request);
     String response = "";
     if (httpCode > 0) {
-        response = httpclient.getString();
+        response = httpClient.getString();
+        Serial.print("httpCode > 0: ");
+        Serial.println(httpCode);
     } else {
-        Serial.println("Error in HTTP request");
+        Serial.print("Error in HTTP request: code = ");
+        Serial.println(httpCode);
     }
 
-    httpclient.end();
-
+    httpClient.end();
     // parse_google_response() returns char* (C-style)
     return response.length() > 0 ? String(parse_google_response(response.c_str())) : String();
 }
 
 String LLMClient::prompt(const String &promptText) {
-    config.llmdata.prompt = promptText.c_str(); // Use const char* here
+    strncpy(prompt_buffer, promptText.c_str(), PROMPT_TEXT_MAX_LEN - 1);
+    prompt_buffer[PROMPT_TEXT_MAX_LEN - 1] = '\0';
+
+    config.llmdata.prompt = prompt_buffer;
 
     switch (config.llmconfig.provider) {
         case GOOGLE_GEMINI:
@@ -85,5 +96,4 @@ String LLMClient::prompt(const String &promptText) {
 }
 
 LLMClient::~LLMClient() {
-    
 }
