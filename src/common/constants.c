@@ -15,6 +15,7 @@ const LLMClientConfig DEFAULT_LLMCLIENT_CONFIG = {
         //4 so 512 * 4 = 2kb reserving the remaining 1kb for approx error slack.  
         .max_tokens = 512,
         .temperature = 0.7f,
+        .json_struct_output = NULL,
         .top_p = 1,
         .top_k = 50
     },

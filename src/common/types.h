@@ -33,6 +33,7 @@ typedef struct {
     const char *api_key;     // API key for authentication
     const char *model_name;  // Model name or ID (e.g., "gpt-4" or "cohere-llm")
     const char *version;     // Optional API version, if applicable (e.g., "v1")
+    const char *json_struct_output; //string representing the how the output should be strctured. 
     int max_tokens;    // Maximum number of tokens for the response
     float temperature; // Controls the randomness of the model (0.0-1.0)
     int top_p;         // Nucleus sampling value (0-1)
@@ -51,8 +52,8 @@ typedef struct {
 } LLMData;
 
 typedef struct{
-    LLMConfig llmconfig;
-    LLMData llmdata;
+    struct LLMConfig llmconfig;
+    struct LLMData llmdata;
     void *user_state;
 } LLMClientConfig;
 
