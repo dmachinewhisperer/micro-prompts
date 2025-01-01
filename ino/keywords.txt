@@ -1,0 +1,19 @@
+// Keywords for functions
+prompt               KEYWORD1
+
+// Keywords for types (enums, structs)
+ProviderName         KEYWORD3
+GlobalFeaturePool    KEYWORD3
+LLMConfig            KEYWORD3
+LLMData              KEYWORD3
+LLMClientConfig      KEYWORD3
+ProviderFeaturePool  KEYWORD3
+
+// Keywords for constants
+DEFAULT_LLMCLIENT_CONFIG    KEYWORD2
+
+// Keywords for macros
+//MAX_SUPPORTED_FEATURES_PER_PROVIDER  KEYWORD2
+
+// Class names (if applicable)
+//HTTPClient           KEYWORD4
