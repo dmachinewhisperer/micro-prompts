@@ -1,4 +1,21 @@
-idf_component_register(SRCS "espidf-http-rest-api.c" "espidf-llm-clients.c" "constants.c"
-                    INCLUDE_DIRS "." "./providers"
-                    REQUIRES esp-tls esp_http_client esp_netif protocol_examples_common nvs_flash  esp_event json
-                    )         
+idf_component_register(
+    SRCS 
+        "./src/LLMClients.c"
+        "./src/common/constants.c"
+        "./src/common/cJSON/cJSON.c"
+        "./src/http/espidf-http-rest-api.c"
+    INCLUDE_DIRS 
+        "./src"
+        "./src/http"
+        "./src/common"
+        "./src/common/cJSON"
+        "./src/common/providers"
+    REQUIRES 
+        esp-tls
+        esp_http_client
+        esp_netif
+        protocol_examples_common
+        nvs_flash
+        esp_event
+        #json
+)
