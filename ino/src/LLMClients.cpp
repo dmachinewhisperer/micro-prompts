@@ -1,12 +1,3 @@
-#ifdef ESP32
-    //#include <WiFi.h>
-    //#include <HTTPClient.h>
-#elif defined(ESP8266)
-    //#include <ESP8266WiFi.h>
-    ///#include <WiFiClientSecure.h>
-    //#include <ESP8266HTTPClient.h>
-#endif
-
 #include "LLMClients.h"
 #include "common/providers/google.h"
 
@@ -17,11 +8,6 @@ LLMClient::LLMClient() {
 }
 
 void LLMClient::begin(const char *apiKey, const char *modelName, ProviderName provider) {
-
-    //strncpy(api_key_buffer, apiKey.c_str(), API_KEY_MAX_LEN - 1);
-    //api_key_buffer[API_KEY_MAX_LEN - 1] = '\0';
-    //strncpy(model_name_buffer, modelName.c_str(), MODEL_NAME_MAX_LEN - 1);
-    //model_name_buffer[MODEL_NAME_MAX_LEN - 1] = '\0';
 
     config.llmconfig.api_key = apiKey;
     config.llmconfig.model_name = modelName;
@@ -90,8 +76,6 @@ String LLMClient::prompt_google_gemini() {
 }
 
 String LLMClient::prompt(const char *promptText) {
-    //strncpy(prompt_buffer, promptText.c_str(), PROMPT_TEXT_MAX_LEN - 1);
-    //prompt_buffer[PROMPT_TEXT_MAX_LEN - 1] = '\0';
 
     config.llmdata.prompt = promptText;
 
