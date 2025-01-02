@@ -17,7 +17,8 @@ $fileList = @{
     "ino/library.properties" = ".";
     "ino/README.md"        = ".";
     "src/common"           = "src/common";
-    "LICENSE"              = "."
+    "LICENSE"              = ".";
+    "ino/test.txt"         = ".";
 }
 
 foreach ($item in $fileList.Keys) {
@@ -44,4 +45,4 @@ foreach ($item in $fileList.Keys) {
     }
 }
 
-Write-Host "Copy operation complete."
+Write-Host "Library installation complete."
