@@ -10,13 +10,9 @@ const LLMClientConfig DEFAULT_LLMCLIENT_CONFIG = {
         .api_key = NULL,
         .model_name = NULL,
         .version = NULL,
-        //the max_tokens specified here is just not arbitary. The http client is configured
-        //with a max response payload size of 3kb(for the espidf). Average lenght of a token in english is around 
-        //4, so 512 * 4 = 2kb reserving the remaining 1kb for error slack.  
-        //.max_tokens > 512 may cause models json response to be cut off and parsing impossible
-        .max_tokens = 512,
+        .max_tokens = MAX_LLM_OUTPUT_TOKENS,
         .temperature = 0.7f,
-        .json_struct_output = NULL,
+        .json_response_schema = NULL,
         .top_p = 1,
         .top_k = 50
     },
@@ -31,10 +27,11 @@ const LLMClientConfig DEFAULT_LLMCLIENT_CONFIG = {
 //model configurations
 const ProviderFeaturePool provider_google_gemini = {
     .supported_features = {
-        TEXT_ONLY,
-        TEXT_WITH_REMOTE_FILE,
-        TEXT_WITH_LOCAL_BASE64_ENCODED_FILE,
+        TEXT_INPUT,
+        TEXT_INPUT_WITH_REMOTE_FILE_URL,
+        TEXT_INPUT_WITH_LOCAL_BASE64_FILE,
+        TEXT_INPUT_WITH_STRUCTURED_OUTPUT,
     },
-    .num_supported_features = 3,
+    .num_supported_features = 4,
     .provider = GOOGLE_GEMINI,
 };
