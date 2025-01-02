@@ -2,11 +2,11 @@
 An extensible LLM prompting library for embedded micros/processors written in C
 
 ## Supported Providers
-1. Hugging Face
+1. Hugging Face (WIP)
 2. Google
-3. Openai
-4. Grok
-5. Anthropic
+3. Openai (WIP)
+4. Grok (WIP)
+5. Anthropic (WIP)
 
 ## Supported Frameworks
 1. Bare metal
