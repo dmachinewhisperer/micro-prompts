@@ -2,9 +2,12 @@
 #define GOOGLE_H_
 
 #include <stddef.h>
-#include "../cJSON/cJSON.h"
+#include <string.h>
 
-#include "../types.h"
+#include "../cJSON/cJSON.h"
+#include "../llm-types.h"
+#include "../debug/debug.h"
+
 /**
 API endpoint
 const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent';
@@ -87,17 +90,24 @@ static int is_feature_supported(GlobalFeaturePool feature) {
 char *build_google_request(LLMClientConfig *config) {
     // Validate provider
     if (config->llmconfig.provider != GOOGLE_GEMINI) {
+        WRITE_LAST_ERROR("build_google_request: No support for selected provider");
         return NULL;
     }
 
     // Validate feature support
     if (is_feature_supported(config->llmconfig.feature) == 0) {
+        WRITE_LAST_ERROR("build_google_request: Selected provider does not support selected feature");
         return NULL;
     }
 
+   // ensure max tokens specified is in line with http max response size
+    if(config->llmconfig.max_tokens > MAX_LLM_OUTPUT_TOKENS){
+        config->llmconfig.max_tokens = MAX_LLM_OUTPUT_TOKENS;
+    }
     // Create root object
     cJSON *root = cJSON_CreateObject();
     if (root == NULL) {
+        WRITE_LAST_ERROR("build_google_request: Error creating json root");
         return NULL;
     }
 
@@ -105,6 +115,7 @@ char *build_google_request(LLMClientConfig *config) {
     cJSON *contents = cJSON_CreateArray();
     if (contents == NULL) {
         cJSON_Delete(root);
+        WRITE_LAST_ERROR("build_google_request: Error creating json contents");
         return NULL;
     }
     cJSON_AddItemToObject(root, "contents", contents);
@@ -113,6 +124,7 @@ char *build_google_request(LLMClientConfig *config) {
     cJSON *content = cJSON_CreateObject();
     if (content == NULL) {
         cJSON_Delete(root);
+        WRITE_LAST_ERROR("build_google_request: Error creating json content");
         return NULL;
     }
     cJSON_AddItemToArray(contents, content);
@@ -121,6 +133,7 @@ char *build_google_request(LLMClientConfig *config) {
     cJSON *parts = cJSON_CreateArray();
     if (parts == NULL) {
         cJSON_Delete(root);
+        WRITE_LAST_ERROR("build_google_request: Error creating json parts");
         return NULL;
     }
     cJSON_AddItemToObject(content, "parts", parts);
@@ -129,17 +142,27 @@ char *build_google_request(LLMClientConfig *config) {
     cJSON *text_part = cJSON_CreateObject();
     if (text_part == NULL) {
         cJSON_Delete(root);
+        WRITE_LAST_ERROR("build_google_request: Error creating json text_part");
         return NULL;
     }
     cJSON_AddItemToArray(parts, text_part);
     cJSON_AddStringToObject(text_part, "text", config->llmdata.prompt);
 
-    // Add file part based on feature
-    if (config->llmconfig.feature == TEXT_WITH_REMOTE_FILE) {
+    // Add generation config
+    cJSON *gen_config = cJSON_CreateObject();
+    if (gen_config == NULL) {
+        cJSON_Delete(root);
+        WRITE_LAST_ERROR("build_google_request: Error creating json gen_config");
+        return NULL;
+    }
+
+    // Add fields based on selected feature
+    if (config->llmconfig.feature == TEXT_INPUT_WITH_REMOTE_FILE_URL) {
         cJSON *file_part = cJSON_CreateObject();
         cJSON *file_data = cJSON_CreateObject();
         if (file_part == NULL || file_data == NULL) {
             cJSON_Delete(root);
+            WRITE_LAST_ERROR("build_google_request: Error creating json file_part || file_data");
             return NULL;
         }
         cJSON_AddItemToArray(parts, file_part);
@@ -147,11 +170,12 @@ char *build_google_request(LLMClientConfig *config) {
         cJSON_AddStringToObject(file_data, "mime_type", config->llmdata.mime);
         cJSON_AddStringToObject(file_data, "file_uri", config->llmdata.file.file_uri);
     }
-    else if (config->llmconfig.feature == TEXT_WITH_LOCAL_BASE64_ENCODED_FILE) {
+    else if (config->llmconfig.feature == TEXT_INPUT_WITH_LOCAL_BASE64_FILE) {
         cJSON *file_part = cJSON_CreateObject();
         cJSON *inline_data = cJSON_CreateObject();
         if (file_part == NULL || inline_data == NULL) {
             cJSON_Delete(root);
+            WRITE_LAST_ERROR("build_google_request: Error creating json content");
             return NULL;
         }
         cJSON_AddItemToArray(parts, file_part);
@@ -160,14 +184,21 @@ char *build_google_request(LLMClientConfig *config) {
         // Placeholder for base64 data - will be added later
         cJSON_AddStringToObject(inline_data, "data", "BASE64_ENCODED_IMAGE_DATA");
     }
-
-    // Add generation config
-    cJSON *gen_config = cJSON_CreateObject();
-    if (gen_config == NULL) {
-        cJSON_Delete(root);
-        return NULL;
+    else if(config->llmconfig.feature == TEXT_INPUT_WITH_STRUCTURED_OUTPUT){
+        cJSON *json_response_schema = cJSON_Parse(config->llmconfig.json_response_schema);
+        if(json_response_schema !=NULL){
+            cJSON_AddStringToObject(gen_config, "response_mime_type", "application/json");
+            cJSON_AddItemToObject(gen_config, "response_schema", json_response_schema); 
+        }
+        else{
+            cJSON_Delete(root);
+            WRITE_LAST_ERROR("build_google_request: Invalid json response_schema");
+            return NULL;
+        }
     }
-    
+
+
+    //set gen configs  
     cJSON_AddItemToObject(root, "generationConfig", gen_config);
     cJSON_AddNumberToObject(gen_config, "temperature", config->llmconfig.temperature);
     cJSON_AddNumberToObject(gen_config, "topK", config->llmconfig.top_k);
@@ -217,6 +248,7 @@ char *parse_google_response(const char *response) {
     }
 
     cJSON_Delete(root);
+    WRITE_LAST_ERROR(response);
     return NULL;
 }
 
