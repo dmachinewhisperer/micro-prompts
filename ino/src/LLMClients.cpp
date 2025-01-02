@@ -16,15 +16,15 @@ LLMClient::LLMClient() {
     config = DEFAULT_LLMCLIENT_CONFIG;
 }
 
-void LLMClient::begin(const String &apiKey, const String &modelName, ProviderName provider) {
+void LLMClient::begin(const char *apiKey, const char *modelName, ProviderName provider) {
 
-    strncpy(api_key_buffer, apiKey.c_str(), API_KEY_MAX_LEN - 1);
-    api_key_buffer[API_KEY_MAX_LEN - 1] = '\0';
-    strncpy(model_name_buffer, modelName.c_str(), MODEL_NAME_MAX_LEN - 1);
-    model_name_buffer[MODEL_NAME_MAX_LEN - 1] = '\0';
+    //strncpy(api_key_buffer, apiKey.c_str(), API_KEY_MAX_LEN - 1);
+    //api_key_buffer[API_KEY_MAX_LEN - 1] = '\0';
+    //strncpy(model_name_buffer, modelName.c_str(), MODEL_NAME_MAX_LEN - 1);
+    //model_name_buffer[MODEL_NAME_MAX_LEN - 1] = '\0';
 
-    config.llmconfig.api_key = api_key_buffer;
-    config.llmconfig.model_name = model_name_buffer;
+    config.llmconfig.api_key = apiKey;
+    config.llmconfig.model_name = modelName;
     config.llmconfig.provider = provider;    
 }
 
@@ -39,6 +39,11 @@ void LLMClient::setMaxTokens(int maxTokens) {
 void LLMClient::setProviderFeature(GlobalFeaturePool feature) {
     config.llmconfig.feature = feature;
 }
+
+void LLMClient::setJSONResponseSchema(const char *json) {
+    config.llmconfig.json_response_schema = json;
+}
+
 
 String LLMClient::prompt_google_gemini() {
     const char *base_url = "https://generativelanguage.googleapis.com";
@@ -76,15 +81,19 @@ String LLMClient::prompt_google_gemini() {
     }
 
     httpClient.end();
+
     // parse_google_response() returns char* (C-style)
-    return response.length() > 0 ? String(parse_google_response(response.c_str())) : String();
+    char *cstr = parse_google_response(response.c_str());
+    String result(cstr);
+    free(cstr);
+    return response.length() > 0 ? result : String();
 }
 
-String LLMClient::prompt(const String &promptText) {
-    strncpy(prompt_buffer, promptText.c_str(), PROMPT_TEXT_MAX_LEN - 1);
-    prompt_buffer[PROMPT_TEXT_MAX_LEN - 1] = '\0';
+String LLMClient::prompt(const char *promptText) {
+    //strncpy(prompt_buffer, promptText.c_str(), PROMPT_TEXT_MAX_LEN - 1);
+    //prompt_buffer[PROMPT_TEXT_MAX_LEN - 1] = '\0';
 
-    config.llmdata.prompt = prompt_buffer;
+    config.llmdata.prompt = promptText;
 
     switch (config.llmconfig.provider) {
         case GOOGLE_GEMINI:

@@ -24,24 +24,26 @@ private:
     HTTPClient httpClient;
     WiFiClientSecure wifiClient;
 
-    char api_key_buffer[API_KEY_MAX_LEN]; 
-    char model_name_buffer[MODEL_NAME_MAX_LEN];
-    char prompt_buffer[PROMPT_TEXT_MAX_LEN];
+    //char api_key_buffer[API_KEY_MAX_LEN]; 
+    //char model_name_buffer[MODEL_NAME_MAX_LEN];
+    //char prompt_buffer[PROMPT_TEXT_MAX_LEN];
 
     LLMClientConfig config;
     String prompt_google_gemini();
 
 public:
     LLMClient();
-    void begin(const String &apiKey, const String &modelName, ProviderName provider);
+    void begin(const char *apiKey, const char *modelName, ProviderName provider);
 
+    
     void setProviderFeature(GlobalFeaturePool feature);
+    void setJSONResponseSchema(const char *json);
     void setTemperature(float temperature);
     void setMaxTokens(int maxTokens);
     void setTopP(float topP);
     void setTopK(int topK);
 
-    String prompt(const String &promptText);
+    String prompt(const char *promptText);
 
     ~LLMClient();
 };
