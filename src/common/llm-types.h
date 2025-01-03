@@ -3,7 +3,6 @@
 #include <stdint.h>
 
 
-
 //the max_tokens specified here is just not arbitary. Http clients are configured with a max  
 //response payload size. Say this is 5kb(in the case of espidf http-client bundled with this lib),average 
 //lenght of a token in english is around 4, so 1024 * 4 = 4kb reserving the remaining 1kb for error slack 
@@ -36,6 +35,7 @@ typedef enum {
 // model configuration.
 typedef struct {
     uint8_t chat;       //chat > 0 => maintain chat history, else oneshot prompt
+    uint8_t structured_output;
     ProviderName provider;
     GlobalFeaturePool feature;
     char *base_url;    // Base URL of the LLM API provider
@@ -53,11 +53,13 @@ typedef struct {
 // Data feed into the model
 typedef struct {
     const char *prompt;
-    union {
-        const char *file_uri;
-        const char *file_dir;
+    struct {
+        size_t nbytes;
+        const char *uri;
+        const char *mime;
+        const unsigned char *data;
     } file;
-    const char *mime;
+    
 } LLMData;
 
 typedef struct{
