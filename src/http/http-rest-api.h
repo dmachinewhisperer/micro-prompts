@@ -6,7 +6,7 @@
 
 #define MAX_HEADER_KEY_LENGTH 128
 #define MAX_HEADER_VALUE_LENGTH 256
-#define MAX_HTTP_RESPONSE_LENGTH 3 * 1024
+#define MAX_HTTP_RESPONSE_LENGTH 5 * 1024
 
 
 // Global queue handle
@@ -21,6 +21,7 @@ typedef enum {
 } event_type_t;
 
 //HTTP event messages
+
 typedef struct {
     event_type_t type; 
     union {
@@ -29,10 +30,13 @@ typedef struct {
             char value[MAX_HEADER_VALUE_LENGTH + 1];
         } header;
         struct { 
-            char body[MAX_HTTP_RESPONSE_LENGTH + 1];
+            //char body[MAX_HTTP_RESPONSE_LENGTH + 1];
+            //body is relatively very large, use heap
+            char* body;
         } finish;
     } data;
 } http_event_message_t;
+
 
 #define QUEUE_LENGTH 10
 #define QUEUE_ITEM_SIZE sizeof(http_event_message_t)

@@ -24,9 +24,10 @@
 
 
 #include "esp_crt_bundle.h"
+#include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 
-#include "espidf-http-rest-api.h"
+#include "http-rest-api.h"
 
 
 #define TAG "api-cli"
@@ -77,7 +78,14 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
             http_event_message_t msg = {0};
             msg.type = EVENT_TYPE_FINISH;
             buf[output_len] = '\0';
-            //memcpy(msg.data.finish.body, buf, MAX_HTTP_RESPONSE_LENGTH); //inc. null-term
+
+            //allocate memory for the body 
+            //it is the responsibility of the queue consumer to release up this memory
+            msg.data.finish.body = malloc(output_len + 1);
+            if(msg.data.finish.body==NULL){
+                ESP_LOGE(TAG, "malloc'ing space for body failed");
+                break;
+            }
             strcpy(msg.data.finish.body, buf);
             output_len = 0;
 
