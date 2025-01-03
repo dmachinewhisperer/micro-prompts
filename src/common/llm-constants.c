@@ -4,7 +4,8 @@
 // example default configuration
 const LLMClientConfig DEFAULT_LLMCLIENT_CONFIG = {
     .llmconfig = {
-        .chat = 0,                           // oneshot prompt mode
+        .chat = 0,     // oneshot prompt mode
+        .structured_output = 0,             //output type         
         .provider = GOOGLE_GEMINI,                  // default provider
         .base_url = NULL,
         .api_key = NULL,
@@ -18,8 +19,12 @@ const LLMClientConfig DEFAULT_LLMCLIENT_CONFIG = {
     },
     .llmdata = {                           
         .prompt = NULL,
-        .file = {.file_uri = NULL},         // initialize union with file_uri
-        .mime = NULL
+        .file = {
+            .data = NULL,
+            .mime = NULL,
+            .nbytes = 0,
+            .uri = NULL,
+            },       
     },
     .user_state = NULL                      // optional user state pointer
 };
