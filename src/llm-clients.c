@@ -14,8 +14,8 @@ extern QueueHandle_t http_event_queue;
 typedef struct {
     const char **headers_filter;    // Array of header keys to watch for
     size_t num_headers;             // Number of headers to watch for
-    char *response;                 // Buffer to store the response body
-    size_t response_size;           // Size of the response body buffer
+    char **response;                 // pointer to buffer where the response body is stored
+    //size_t response_size;           // Size of the response body buffer
     char **header_values;           // Array of pointers to store header values
     SemaphoreHandle_t sync;         // Semaphore for signaling completion/syncing with calling funcion
 } HTTPQueueHandlerTaskParams;
@@ -42,8 +42,9 @@ static void task_http_queue_handler(void *param) {
 
             case EVENT_TYPE_FINISH:
                 // Copy the body to the response buffer
-                strncpy(params->response, msg.data.finish.body, params->response_size - 1);
-                params->response[params->response_size - 1] = '\0';
+                //strncpy(params->response, msg.data.finish.body, params->response_size - 1);
+                //params->response[params->response_size - 1] = '\0';
+                *(params->response) = msg.data.finish.body;
                 ESP_LOGD(TAG, "Response Body Captured");
                 xSemaphoreGive(params->sync); // Signal completion
                 vTaskDelete(NULL);
@@ -92,11 +93,11 @@ static char *prompt_google_gemini(esp_http_client_handle_t client, LLMClientConf
     esp_http_client_set_url(client, google_generate_url);
 
     //response memory management is the responsibility of the function caller
-    response = (char*)malloc(sizeof(char) * MAX_HTTP_RESPONSE_LENGTH + 1);
-    if(response==NULL){
-        ESP_LOGE(TAG, "malloc'ing space for response failed");
-        return NULL;
-    }
+    //response = (char*)malloc(sizeof(char) * MAX_HTTP_RESPONSE_LENGTH + 1);
+    //if(response==NULL){
+    //    ESP_LOGE(TAG, "malloc'ing space for response failed");
+    //    return NULL;
+    //}
 
     //the following block configures and starts a task that returns the response body and 
     //any specified headers if needed by the calling application. 
@@ -112,14 +113,14 @@ static char *prompt_google_gemini(esp_http_client_handle_t client, LLMClientConf
     HTTPQueueHandlerTaskParams params = {
         .headers_filter = NULL,
         .num_headers = 0,
-        .response = response,
-        .response_size = MAX_HTTP_RESPONSE_LENGTH,
+        .response = &response,
+        //.response_size = MAX_HTTP_RESPONSE_LENGTH,
         .header_values = NULL,
         .sync = sync_semaphore,
     };
     // Launch the task
     if (xTaskCreate(task_http_queue_handler, "HTTPTaskHandler", 
-                    4096, &params, tskIDLE_PRIORITY + 1, &task_queue_handler_handle) != pdPASS) {
+                    1024, &params, tskIDLE_PRIORITY + 1, &task_queue_handler_handle) != pdPASS) {
         ESP_LOGE(TAG, "Failed to create queue reading task");
         goto cleanup;
     } 
@@ -137,7 +138,6 @@ static char *prompt_google_gemini(esp_http_client_handle_t client, LLMClientConf
                     strlen(request));
                    
     if(err!=ESP_OK){
-        //add code to stop task
         goto cleanup;
     } 
 
@@ -147,10 +147,17 @@ static char *prompt_google_gemini(esp_http_client_handle_t client, LLMClientConf
 
     } 
 
-    // Clean up
+    if(response==NULL){
+        ESP_LOGD(TAG, "Failed to allocate memory for response.");
+        goto cleanup;
+    }
+    char *text = parse_google_response(response);
+
+    //clean up
     free(request); 
-    vSemaphoreDelete(sync_semaphore);       
-    return parse_google_response(response);         
+    free(response);
+    vSemaphoreDelete(sync_semaphore);    
+    return text;         
 
 //early return
 cleanup:
