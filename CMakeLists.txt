@@ -1,13 +1,16 @@
 idf_component_register(
     SRCS 
-        "./src/LLMClients.c"
-        "./src/common/constants.c"
+        "./src/llm-clients.c"
+        "src/common/utils/debug.c"
+        "src/common/utils/base64.c"
+        "./src/common/llm-constants.c"
         "./src/common/cJSON/cJSON.c"
-        "./src/http/espidf-http-rest-api.c"
+        "./src/http/http-rest-api.c"
     INCLUDE_DIRS 
         "./src"
         "./src/http"
         "./src/common"
+        "./src/common/utils"
         "./src/common/cJSON"
         "./src/common/providers"
     REQUIRES 
