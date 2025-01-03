@@ -6,7 +6,7 @@
 
 #include "../cJSON/cJSON.h"
 #include "../llm-types.h"
-#include "../debug/debug.h"
+#include "../utils/utils.h"
 
 /**
 API endpoint
@@ -167,8 +167,8 @@ char *build_google_request(LLMClientConfig *config) {
         }
         cJSON_AddItemToArray(parts, file_part);
         cJSON_AddItemToObject(file_part, "file_data", file_data);
-        cJSON_AddStringToObject(file_data, "mime_type", config->llmdata.mime);
-        cJSON_AddStringToObject(file_data, "file_uri", config->llmdata.file.file_uri);
+        cJSON_AddStringToObject(file_data, "mime_type", config->llmdata.file.mime);
+        cJSON_AddStringToObject(file_data, "file_uri", config->llmdata.file.uri);
     }
     else if (config->llmconfig.feature == TEXT_INPUT_WITH_LOCAL_BASE64_FILE) {
         cJSON *file_part = cJSON_CreateObject();
@@ -180,11 +180,14 @@ char *build_google_request(LLMClientConfig *config) {
         }
         cJSON_AddItemToArray(parts, file_part);
         cJSON_AddItemToObject(file_part, "inlineData", inline_data);
-        cJSON_AddStringToObject(inline_data, "mimeType", config->llmdata.mime);
-        // Placeholder for base64 data - will be added later
-        cJSON_AddStringToObject(inline_data, "data", "BASE64_ENCODED_IMAGE_DATA");
+        cJSON_AddStringToObject(inline_data, "mimeType", config->llmdata.file.mime);
+        const char *base64_file_data = base64_encode(config->llmdata.file.data, 
+                                                        config->llmdata.file.nbytes);
+        cJSON_AddStringToObject(inline_data, "data", base64_file_data);
+        free(base64_file_data);
     }
-    else if(config->llmconfig.feature == TEXT_INPUT_WITH_STRUCTURED_OUTPUT){
+    else if((config->llmconfig.feature == TEXT_INPUT_WITH_STRUCTURED_OUTPUT) ||
+            (config->llmconfig.structured_output > 0) ){
         cJSON *json_response_schema = cJSON_Parse(config->llmconfig.json_response_schema);
         if(json_response_schema !=NULL){
             cJSON_AddStringToObject(gen_config, "response_mime_type", "application/json");
