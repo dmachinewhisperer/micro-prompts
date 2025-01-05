@@ -16,7 +16,7 @@
 typedef enum{
     GROK,
     GOOGLE_GEMINI,
-    OPENAI_CHATGPT,
+    OPENAI_GPT,
     DEEPSEEK,
     HUGGING_FACE,
 } ProviderName;
@@ -29,6 +29,9 @@ typedef enum {
     AUDIO_INPUT_FOR_CLASSIFICATION,               // Audio file input for classification tasks
     AUDIO_INPUT_FOR_SPEECH_TO_TEXT,               // Audio input for automatic speech recognition (ASR)
     TEXT_INPUT_WITH_STRUCTURED_OUTPUT,            // Text input with a structured/parsed output format  
+    TEXT_INPUT_WITH_REMOTE_IMG,
+    TEXT_INPUT_WITH_LOCAL_IMG,
+    TEXT_INPUT_WITH_LOCAL_AUDIO,
     TOTAL_FEATURE_COUNT                           // Automatically tracks number of features
 } GlobalFeaturePool;
 
@@ -42,6 +45,7 @@ typedef struct {
     const char *api_key;     // API key for authentication
     const char *model_name;  // Model name or ID (e.g., "gpt-4" or "cohere-llm")
     const char *version;     // Optional API version, if applicable (e.g., "v1")
+    const char *api_endpoint; //api endpoint to support providers that implement openai API format 
     const char *json_response_schema; //string representing the how the output should be strctured. 
     int max_tokens;    // Maximum number of tokens for the response
     float temperature; // Controls the randomness of the model (0.0-1.0)
@@ -50,7 +54,7 @@ typedef struct {
 } LLMConfig;
 
 
-// Data feed into the model
+// Data associated with the model
 typedef struct {
     const char *prompt;
     struct {
@@ -59,6 +63,10 @@ typedef struct {
         const char *mime;
         const unsigned char *data;
     } file;
+    struct{
+        uint8_t return_raw; //if >0, the raw model output json is returned from prompt()
+                            //in this case, the parsing should be done by the user
+    } response; 
     
 } LLMData;
 
@@ -81,7 +89,12 @@ typedef struct {
 
 //constants
 extern const LLMClientConfig DEFAULT_LLMCLIENT_CONFIG;
+extern const ProviderFeaturePool provider_groq_;
+extern const ProviderFeaturePool provider_openai_gpt;
 extern const ProviderFeaturePool provider_google_gemini;
+
+//helper function to check if feature is supported
+int _is_feature_supported(GlobalFeaturePool gfeature, ProviderFeaturePool pfeature);
 
 
 #endif //ESP32_LLM_PROMPTING_LIB_H_
