@@ -77,27 +77,12 @@ char *parse_google_response(const char *response);
 #endif
 
 
-// Helper function to check if a feature is supported by Google provider
-static int is_feature_supported(GlobalFeaturePool feature) {
-    for (size_t i = 0; i < provider_google_gemini.num_supported_features; i++) {
-        if (provider_google_gemini.supported_features[i] == feature) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
 char *build_google_request(LLMClientConfig *config) {
-    // Validate provider
-    if (config->llmconfig.provider != GOOGLE_GEMINI) {
-        WRITE_LAST_ERROR("build_google_request: No support for selected provider");
-        return NULL;
-    }
-
+   
     // Validate feature support
-    if (is_feature_supported(config->llmconfig.feature) == 0) {
+    if(_is_feature_supported(config->llmconfig.feature, provider_google_gemini) ==0){
         WRITE_LAST_ERROR("build_google_request: Selected provider does not support selected feature");
-        return NULL;
+        return NULL;        
     }
 
    // ensure max tokens specified is in line with http max response size
