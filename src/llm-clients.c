@@ -190,10 +190,6 @@ static char *prompt_google_gemini(esp_http_client_handle_t client, LLMClientConf
 
 #ifdef USE_OPENAI_CLIENT
 static char *prompt_openai_gpt(esp_http_client_handle_t client, LLMClientConfig *llmconfigs){
-    //char *request = NULL;
-    //char *response = NULL;
-    //SemaphoreHandle_t sync_semaphore = NULL;
-    //TaskHandle_t task_queue_handler_handle = NULL;
 
     if (client == NULL){
         ESP_LOGE(TAG, "http_client uninit'ed");
