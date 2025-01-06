@@ -131,15 +131,7 @@ char *build_openai_request(LLMClientConfig *config) {
     }
 
     cJSON_AddStringToObject(root, "model", config->llmconfig.model_name);
-
-    // Create messages array
-    cJSON *messages = cJSON_CreateArray();
-    if (messages == NULL) {
-        cJSON_Delete(root);
-        WRITE_LAST_ERROR("build_openai_request: Error creating messages array");
-        return NULL;
-    }
-    cJSON_AddItemToObject(root, "messages", messages);
+  
 
     // Create user message object
     cJSON *message = cJSON_CreateObject();
@@ -148,7 +140,7 @@ char *build_openai_request(LLMClientConfig *config) {
         WRITE_LAST_ERROR("build_openai_request: Error creating message object");
         return NULL;
     }
-    cJSON_AddItemToArray(messages, message);
+    //cJSON_AddItemToArray(messages, message);
     cJSON_AddStringToObject(message, "role", "user");
 
     // Create content array for the message
@@ -170,6 +162,7 @@ char *build_openai_request(LLMClientConfig *config) {
     cJSON_AddItemToArray(content, text_content);
     cJSON_AddStringToObject(text_content, "type", "text");
     cJSON_AddStringToObject(text_content, "text", config->llmdata.prompt);
+
 
     //add features based on config
     if (config->llmconfig.feature == TEXT_INPUT_WITH_REMOTE_IMG) {
@@ -204,6 +197,7 @@ char *build_openai_request(LLMClientConfig *config) {
         const char *base64_data = base64_encode(config->llmdata.file.data, 
                                               config->llmdata.file.nbytes);
         char *url = malloc(strlen(base64_data) + 30); // Extra space for prefix
+        
         sprintf(url, "data:%s;base64,%s",config->llmdata.file.mime, base64_data);
         cJSON_AddStringToObject(image_url, "url", url);
 
@@ -261,6 +255,38 @@ char *build_openai_request(LLMClientConfig *config) {
         cJSON_AddBoolToObject(response_format, "strict", 1);
     }
 
+    // Create messages array
+    cJSON *messages = NULL;
+
+    //bundle all previous messages if chatting, else send only message 
+    if(config->llmconfig.chat > 0){
+      if(config->user_state == NULL){
+        config->user_state =  cJSON_CreateArray();
+      } 
+      messages = config->user_state; 
+      cJSON_AddItemToArray(messages, message);
+
+      //trim messages(config->user_state)  to save heap 
+      if( cJSON_GetArraySize(messages) > config.llmconfig.chat){
+        cJSON_DeleteItemFromArray(messages, 0);
+      }      
+
+      //make a deep copy of messages in user_state because messages will 
+      //be bound to root which frees all memory when deleted and we need to keep track of previous chat
+
+      config->user_state = cJSON_Duplicate(messages, true);
+
+    } else{
+      messages = cJSON_CreateArray();
+      cJSON_AddItemToArray(messages, message);
+    }
+    if (messages == NULL) {
+        cJSON_Delete(root);
+        WRITE_LAST_ERROR("build_openai_request: Error creating user_state");
+        return NULL;
+    }
+    cJSON_AddItemToObject(root, "messages", messages);
+
     // Add generation parameters
     cJSON_AddNumberToObject(root, "max_completion_tokens", config->llmconfig.max_tokens);
     cJSON_AddNumberToObject(root, "temperature", config->llmconfig.temperature);
@@ -278,7 +304,8 @@ char *build_openai_request(LLMClientConfig *config) {
 
 /** TODO: handle refusal, contained in the response message.refusal. (done)
  * **/
-char *parse_openai_response(const char *response) {
+char *parse_openai_response(LLMClientConfig *config, const char *response){
+//char *parse_openai_response(const char *response) {
     if (response == NULL) {
         return NULL;
     }
@@ -329,6 +356,11 @@ char *parse_openai_response(const char *response) {
         cJSON_Delete(root);
         WRITE_LAST_ERROR("parse_openai_response: No content in message");
         return NULL;
+    }
+
+    //store model response if chatting
+    if(config->llmconfig.chat > 0 && config->user_state){
+        cJSON_AddItemToArray(config->user_state, cJSON_Duplicate(message, true));
     }
 
     // Copy content
