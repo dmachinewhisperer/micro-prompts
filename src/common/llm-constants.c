@@ -37,8 +37,8 @@ const LLMClientConfig DEFAULT_LLMCLIENT_CONFIG = {
 const ProviderFeaturePool provider_google_gemini = {
     .supported_features = {
         TEXT_INPUT,
-        TEXT_INPUT_WITH_REMOTE_FILE_URL,
-        TEXT_INPUT_WITH_LOCAL_BASE64_FILE,
+        TEXT_INPUT_WITH_REMOTE_FILE,
+        TEXT_INPUT_WITH_LOCAL_FILE,
         TEXT_INPUT_WITH_STRUCTURED_OUTPUT,
     },
     .num_supported_features = 4,

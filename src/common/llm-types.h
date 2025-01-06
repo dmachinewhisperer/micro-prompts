@@ -24,8 +24,8 @@ typedef enum{
 //global feature pool
 typedef enum {
     TEXT_INPUT,                                   // Text as input, no other data
-    TEXT_INPUT_WITH_LOCAL_BASE64_FILE,            // Text input with a locally base64-encoded file attached
-    TEXT_INPUT_WITH_REMOTE_FILE_URL,              // Text input with a remote file URL provided
+    TEXT_INPUT_WITH_LOCAL_FILE,            // Text input with a locally base64-encoded file attached
+    TEXT_INPUT_WITH_REMOTE_FILE,              // Text input with a remote file URL provided
     AUDIO_INPUT_FOR_CLASSIFICATION,               // Audio file input for classification tasks
     AUDIO_INPUT_FOR_SPEECH_TO_TEXT,               // Audio input for automatic speech recognition (ASR)
     TEXT_INPUT_WITH_STRUCTURED_OUTPUT,            // Text input with a structured/parsed output format  
