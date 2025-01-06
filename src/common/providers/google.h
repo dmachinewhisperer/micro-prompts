@@ -97,12 +97,12 @@ char *build_google_request(LLMClientConfig *config) {
     }
 
     // Create contents array
-    cJSON *contents = cJSON_CreateArray();
-    if (contents == NULL) {
-        cJSON_Delete(root);
-        WRITE_LAST_ERROR("build_google_request: Error creating json contents");
-        return NULL;
-    }
+    //cJSON *contents = cJSON_CreateArray();
+    //if (contents == NULL) {
+    //    cJSON_Delete(root);
+    //    WRITE_LAST_ERROR("build_google_request: Error creating json contents");
+    //    return NULL;
+    //}
     cJSON_AddItemToObject(root, "contents", contents);
 
     // Create first content object
@@ -112,7 +112,7 @@ char *build_google_request(LLMClientConfig *config) {
         WRITE_LAST_ERROR("build_google_request: Error creating json content");
         return NULL;
     }
-    cJSON_AddItemToArray(contents, content);
+    //cJSON_AddItemToArray(contents, content);
 
     // Create parts array
     cJSON *parts = cJSON_CreateArray();
@@ -142,7 +142,7 @@ char *build_google_request(LLMClientConfig *config) {
     }
 
     // Add fields based on selected feature
-    if (config->llmconfig.feature == TEXT_INPUT_WITH_REMOTE_FILE_URL) {
+    if (config->llmconfig.feature == TEXT_INPUT_WITH_REMOTE_FILE) {
         cJSON *file_part = cJSON_CreateObject();
         cJSON *file_data = cJSON_CreateObject();
         if (file_part == NULL || file_data == NULL) {
@@ -155,7 +155,7 @@ char *build_google_request(LLMClientConfig *config) {
         cJSON_AddStringToObject(file_data, "mime_type", config->llmdata.file.mime);
         cJSON_AddStringToObject(file_data, "file_uri", config->llmdata.file.uri);
     }
-    else if (config->llmconfig.feature == TEXT_INPUT_WITH_LOCAL_BASE64_FILE) {
+    else if (config->llmconfig.feature == TEXT_INPUT_WITH_LOCAL_FILE) {
         cJSON *file_part = cJSON_CreateObject();
         cJSON *inline_data = cJSON_CreateObject();
         if (file_part == NULL || inline_data == NULL) {
@@ -185,7 +185,38 @@ char *build_google_request(LLMClientConfig *config) {
         }
     }
 
+    // Create messages array
+    cJSON *contents = NULL;
 
+    //bundle all previous messages if chatting, else send only message 
+    if(config->llmconfig.chat > 0){
+      if(config->user_state == NULL){
+        config->user_state =  cJSON_CreateArray();
+      } 
+      contents = config->user_state; 
+      cJSON_AddItemToArray(contents, content);
+      cJSON_AddStringToObject(content, "role", "user");
+
+      //trim messages(config->user_state)  to save heap 
+      if( cJSON_GetArraySize(contents) > config.llmconfig.chat){
+        cJSON_DeleteItemFromArray(contents, 0);
+      }      
+
+      //make a deep copy of messages in user_state because messages will 
+      //be bound to root which frees all memory when deleted and we need to keep track of previous chat
+
+      config->user_state = cJSON_Duplicate(contents, true);
+
+    } else{
+      contents = cJSON_CreateArray();
+      cJSON_AddItemToArray(contents, content);
+    }
+    if (contents == NULL) {
+        cJSON_Delete(root);
+        WRITE_LAST_ERROR("build_google_request: Error creating user_state");
+        return NULL;
+    }
+    cJSON_AddItemToObject(root, "contents", contents);
     //set gen configs  
     cJSON_AddItemToObject(root, "generationConfig", gen_config);
     cJSON_AddNumberToObject(gen_config, "temperature", config->llmconfig.temperature);
@@ -201,7 +232,8 @@ char *build_google_request(LLMClientConfig *config) {
     return request_str;
 }
 
-char *parse_google_response(const char *response) {
+char *parse_google_response(LLMClientConfig *config, const char *response){
+//char *parse_google_response(const char *response) {
     if (response == NULL) {
         return NULL;
     }
@@ -235,6 +267,10 @@ char *parse_google_response(const char *response) {
         }
     }
 
+    //store model response if chatting
+    if(config->llmconfig.chat > 0 && config->user_state){
+        cJSON_AddItemToArray(config->user_state, cJSON_Duplicate(content, true));
+    }
     cJSON_Delete(root);
     WRITE_LAST_ERROR(response);
     return NULL;
