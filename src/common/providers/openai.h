@@ -103,7 +103,7 @@ extern "C" {
 #endif
 
 char *build_openai_request(LLMClientConfig *config);
-char *parse_openai_response(const char *response);
+char *parse_openai_response(LLMClientConfig *config, const char *response);
 
 #ifdef __cplusplus
 }
@@ -267,7 +267,7 @@ char *build_openai_request(LLMClientConfig *config) {
       cJSON_AddItemToArray(messages, message);
 
       //trim messages(config->user_state)  to save heap 
-      if( cJSON_GetArraySize(messages) > config.llmconfig.chat){
+      if( cJSON_GetArraySize(messages) > config->llmconfig.chat){
         cJSON_DeleteItemFromArray(messages, 0);
       }      
 
@@ -305,7 +305,6 @@ char *build_openai_request(LLMClientConfig *config) {
 /** TODO: handle refusal, contained in the response message.refusal. (done)
  * **/
 char *parse_openai_response(LLMClientConfig *config, const char *response){
-//char *parse_openai_response(const char *response) {
     if (response == NULL) {
         return NULL;
     }
