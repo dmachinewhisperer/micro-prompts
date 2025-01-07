@@ -32,7 +32,7 @@
 
 #define TAG "api-cli"
 
-extern QueueHandle_t http_event_queue;
+QueueHandle_t http_event_queue;
 /**
  * @brief Handles HTTP events and sends them to a global queue.
  *
@@ -243,8 +243,15 @@ esp_err_t client_init(esp_http_client_handle_t *client, client_config_t *configs
     *client = esp_http_client_init(&config);
     if (*client == NULL) {
         return ESP_FAIL;
+    }   
+    
+    //create receive queue for http events
+    http_event_queue = xQueueCreate(QUEUE_LENGTH, QUEUE_ITEM_SIZE);
+    if (http_event_queue == NULL) {
+        return ESP_FAIL;
     }
-    return ESP_OK;    
+
+    return ESP_OK; 
 }
 
 
