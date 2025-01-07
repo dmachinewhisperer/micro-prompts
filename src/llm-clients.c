@@ -78,7 +78,7 @@ static char *___request(esp_http_client_handle_t client,
                       LLMClientConfig *llmconfigs, 
                       header_mod_t *headers,
                        char* (*build_request)(LLMClientConfig*), 
-                       char* (*parse_response)(const char*)){
+                       char* (*parse_response)(LLMClientConfig*, const char*)){
     char *request = NULL;
     char *response = NULL;
     SemaphoreHandle_t sync_semaphore = NULL;
@@ -91,7 +91,7 @@ static char *___request(esp_http_client_handle_t client,
     //the task releases the sync semaphore and  deletes itself when the body response is complete
     sync_semaphore = xSemaphoreCreateBinary();
     if (sync_semaphore == NULL) {
-        ESP_LOGE(TAG, "Failed to create semaphore");
+        ESP_LOGE(TAG, "failed to create sync_semaphore");
         goto cleanup;
     }
     HTTPQueueHandlerTaskParams params = {
@@ -104,12 +104,13 @@ static char *___request(esp_http_client_handle_t client,
     // Launch the task
     if (xTaskCreate(task_http_queue_handler, "HTTPTaskHandler", 
                     1024, &params, tskIDLE_PRIORITY + 1, &task_queue_handler_handle) != pdPASS) {
-        ESP_LOGE(TAG, "Failed to create queue reading task");
+        ESP_LOGE(TAG, "failed to create queue reading task");
         goto cleanup;
     } 
 
     request = build_request(llmconfigs);
     if(request==NULL){
+        ESP_LOGE(TAG, "build_request failed");
         goto cleanup;
     }
     ESP_LOGE(TAG, "%s", request);
@@ -121,6 +122,7 @@ static char *___request(esp_http_client_handle_t client,
                     strlen(request));
                    
     if(err!=ESP_OK){
+        ESP_LOGE(TAG, "client_request failed");
         goto cleanup;
     } 
 
@@ -131,7 +133,7 @@ static char *___request(esp_http_client_handle_t client,
     } 
 
     if(response==NULL){
-        ESP_LOGD(TAG, "Failed to allocate memory for response.");
+        ESP_LOGE(TAG, "failed to allocate memory for response");
         goto cleanup;
     }
 
@@ -141,7 +143,7 @@ static char *___request(esp_http_client_handle_t client,
     if(llmconfigs->llmdata.response.return_raw > 0 || parse_response==NULL){
         return response; 
     }
-    char *text = parse_openai_response(response);
+    char *text = parse_openai_response(llmconfigs,response);
     free(response);
     return text;         
 
