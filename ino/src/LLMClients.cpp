@@ -102,6 +102,9 @@ String LLMClient::___request(LLMClientConfig* config,
         return response;
     }
     char *cstr = parse_response(config, response.c_str());
+    if(cstr==NULL){
+        return response; 
+    }
     String result(cstr);
     free(cstr);
     return response.length() > 0 ? result : String();                         

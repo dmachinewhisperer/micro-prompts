@@ -139,11 +139,16 @@ static char *___request(esp_http_client_handle_t client,
 
     free(request); 
     vSemaphoreDelete(sync_semaphore); 
-
+    
+    //if parsing failed or user wants the raw data, return the json response instead
     if(llmconfigs->llmdata.response.return_raw > 0 || parse_response==NULL){
         return response; 
     }
-    char *text = parse_openai_response(llmconfigs,response);
+    char *text = parse_response(llmconfigs,response);
+    if(text==NULL){
+        return response; 
+    }
+    
     free(response);
     return text;         
 
