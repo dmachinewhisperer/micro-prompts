@@ -196,7 +196,7 @@ char *build_openai_request(LLMClientConfig *config) {
         //attach base64 data
         const char *base64_data = base64_encode(config->llmdata.file.data, 
                                               config->llmdata.file.nbytes);
-        char *url = malloc(strlen(base64_data) + 30); // Extra space for prefix
+        char *url = (char*)malloc(strlen(base64_data) + 30); // Extra space for prefix
         
         sprintf(url, "data:%s;base64,%s",config->llmdata.file.mime, base64_data);
         cJSON_AddStringToObject(image_url, "url", url);
@@ -204,7 +204,7 @@ char *build_openai_request(LLMClientConfig *config) {
         //controls number of tokens used: see: https://platform.openai.com/docs/guides/vision
         cJSON_AddStringToObject(image_url, "detail", "low");
         free((void*)base64_data);
-        free(url);
+        free((void*)url);
     }
     else if (config->llmconfig.feature == TEXT_INPUT_WITH_LOCAL_AUDIO) {
         cJSON *audio_content = cJSON_CreateObject();
@@ -263,7 +263,7 @@ char *build_openai_request(LLMClientConfig *config) {
       if(config->user_state == NULL){
         config->user_state =  cJSON_CreateArray();
       } 
-      messages = config->user_state; 
+      messages = (cJSON*)config->user_state; 
       cJSON_AddItemToArray(messages, message);
 
       //trim messages(config->user_state)  to save heap 
@@ -359,7 +359,7 @@ char *parse_openai_response(LLMClientConfig *config, const char *response){
 
     //store model response if chatting
     if(config->llmconfig.chat > 0 && config->user_state){
-        cJSON_AddItemToArray(config->user_state, cJSON_Duplicate(message, true));
+        cJSON_AddItemToArray((cJSON*)config->user_state, cJSON_Duplicate(message, true));
     }
 
     // Copy content

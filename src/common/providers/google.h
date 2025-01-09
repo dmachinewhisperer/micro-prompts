@@ -70,7 +70,7 @@ extern "C" {
 #endif
 
 char *build_google_request(LLMClientConfig *config);
-char *parse_google_response(const char *response);
+char *parse_google_response(LLMClientConfig *config, const char *response);
 
 #ifdef __cplusplus
 }
@@ -96,14 +96,6 @@ char *build_google_request(LLMClientConfig *config) {
         return NULL;
     }
 
-    // Create contents array
-    //cJSON *contents = cJSON_CreateArray();
-    //if (contents == NULL) {
-    //    cJSON_Delete(root);
-    //    WRITE_LAST_ERROR("build_google_request: Error creating json contents");
-    //    return NULL;
-    //}
-    cJSON_AddItemToObject(root, "contents", contents);
 
     // Create first content object
     cJSON *content = cJSON_CreateObject();
@@ -233,7 +225,6 @@ char *build_google_request(LLMClientConfig *config) {
 }
 
 char *parse_google_response(LLMClientConfig *config, const char *response){
-//char *parse_google_response(const char *response) {
     if (response == NULL) {
         return NULL;
     }
