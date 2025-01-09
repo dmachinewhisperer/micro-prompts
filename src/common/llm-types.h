@@ -41,7 +41,7 @@ typedef struct {
     uint8_t structured_output;
     ProviderName provider;
     GlobalFeaturePool feature;
-    char *base_url;    // Base URL of the LLM API provider
+    const char *base_url;    // Base URL of the LLM API provider
     const char *api_key;     // API key for authentication
     const char *model_name;  // Model name or ID (e.g., "gpt-4" or "cohere-llm")
     const char *version;     // Optional API version, if applicable (e.g., "v1")
@@ -94,7 +94,11 @@ extern const ProviderFeaturePool provider_openai_gpt;
 extern const ProviderFeaturePool provider_google_gemini;
 
 //helper function to check if feature is supported
+#ifdef __cplusplus
+extern "C" {
+#endif
 int _is_feature_supported(GlobalFeaturePool gfeature, ProviderFeaturePool pfeature);
-
-
+#ifdef __cplusplus
+}
+#endif
 #endif //ESP32_LLM_PROMPTING_LIB_H_
