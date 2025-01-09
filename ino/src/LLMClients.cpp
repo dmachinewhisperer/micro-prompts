@@ -1,7 +1,10 @@
 #include "LLMClients.h"
-#include "common/providers/google.h"
-
+//#include "common/providers/google.h"
+#include "common/providers/openai.h"
+#include "common/utils/utils.h"
 #define MAX_HTTP_RESPONSE_LENGTH 3 * 1024
+
+
 
 LLMClient::LLMClient() {
     config = DEFAULT_LLMCLIENT_CONFIG;
@@ -12,6 +15,13 @@ void LLMClient::begin(const char *apiKey, const char *modelName, ProviderName pr
     config.llmconfig.api_key = apiKey;
     config.llmconfig.model_name = modelName;
     config.llmconfig.provider = provider;    
+
+#ifdef USE_GOOGLE_CLIENT
+    init_google_client();
+#endif
+#ifdef USE_OPENAI_CLIENT
+    init_openai_client();
+#endif    
 }
 
 void LLMClient::setTemperature(float temp) {
@@ -28,33 +38,55 @@ void LLMClient::setProviderFeature(GlobalFeaturePool feature) {
 
 void LLMClient::setJSONResponseSchema(const char *json) {
     config.llmconfig.json_response_schema = json;
+    config.llmconfig.structured_output = 1; 
 }
 
+//must be called before ::begin() if using different endpoints
+void LLMClient::setProviderURL(const char *base, const char *version, const char *endpoint){
+    config.llmconfig.base_url = base;
+    config.llmconfig.version = version;
+    config.llmconfig.api_endpoint = endpoint;
+}
+void LLMClient::setFileProperties(const char *mime, const char *uri, const char *data, size_t nbytes){
+    config.llmdata.file.mime = mime; 
+    config.llmdata.file.uri = uri;
+    config.llmdata.file.data = (const unsigned char*)data;
+    config.llmdata.file.nbytes = nbytes;
 
-String LLMClient::prompt_google_gemini() {
-    const char *base_url = "https://generativelanguage.googleapis.com";
-    String google_generate_url = String(base_url) + "/v1beta/models/" +
-                                 config.llmconfig.model_name + ":generateContent?key=" + config.llmconfig.api_key;
+}
 
-    #ifdef ESP32
-        httpClient.begin(google_generate_url);
-    #elif defined(ESP8266)
+void LLMClient::retainChatContext(int nchat_msgs){
+    config.llmconfig.chat = nchat_msgs; 
+}
+void LLMClient::returnRawResponse(){
+    config.llmdata.response.return_raw = 1; 
+}
+
+void LLMClient::___init(String url, const char* headers[][2]){
+#ifdef ESP32
+        httpClient.begin(url);
+#elif defined(ESP8266)
         wifiClient.setInsecure();
-        httpClient.begin(wifiClient, google_generate_url);
-    #endif
+        httpClient.begin(wifiClient, url);
+#endif
 
-    // build_google_request() returns char* (C-style)
-    httpClient.addHeader("Content-Type", "application/json");
-    String request = String(build_google_request(&config));
+    for (int i = 0; headers[i][0] != NULL && headers[i][1] != NULL; i++) {
+        httpClient.addHeader(String(headers[i][0]), String(headers[i][1]));
+    }
+}
+
+String LLMClient::___request(LLMClientConfig* config,
+                       char* (*build_request)(LLMClientConfig*), 
+                       char* (*parse_response)(LLMClientConfig*, const char*)){
+
+
+    String request = String(build_request(config));
     if (request.length() == 0) {
         Serial.println("Failed to build request");
-        httpClient.end();
         return String();
     }
-    Serial.println(google_generate_url);
     Serial.println(request);
 
-    // Make the POST request
     int httpCode = httpClient.POST(request);
     String response = "";
     if (httpCode > 0) {
@@ -64,29 +96,105 @@ String LLMClient::prompt_google_gemini() {
     } else {
         Serial.print("Error in HTTP request: code = ");
         Serial.println(httpCode);
+        return String();
     }
-
-    httpClient.end();
-
-    // parse_google_response() returns char* (C-style)
-    char *cstr = parse_google_response(response.c_str());
+    if(config->llmdata.response.return_raw > 0){
+        return response;
+    }
+    char *cstr = parse_response(config, response.c_str());
     String result(cstr);
     free(cstr);
-    return response.length() > 0 ? result : String();
+    return response.length() > 0 ? result : String();                         
+
 }
 
-String LLMClient::prompt(const char *promptText) {
+#ifdef USE_GOOGLE_CLIENT
+void LLMClient::init_google_client() {
+    const char *base_url = "https://generativelanguage.googleapis.com";
+    String url = String(base_url) + "/v1beta/models/" +
+                                 config.llmconfig.model_name + ":generateContent?key=" + config.llmconfig.api_key;
 
-    config.llmdata.prompt = promptText;
+    const char* headers[][2] = {
+    {"Content-Type", "application/json"},
+    {NULL, NULL}
+    };
+    ___init(url, headers);
+}
+String LLMClient::prompt_google_gemini() {
+    
+    return  ___request(&config, google_generate_url, headers, build_google_request, parse_google_response); 
+}
+#endif
 
-    switch (config.llmconfig.provider) {
-        case GOOGLE_GEMINI:
-            return prompt_google_gemini();
-        default:
-            Serial.println("Unsupported provider");
-            return String();
+void LLMClient::init_openai_client(){
+    const char *default_base_url = "https://api.openai.com";
+    const char *default_version = "v1";
+    const char *default_endpoint = "chat/completions";
+    
+    /** TODO: refactor this block
+     * multiple String concat is inefficient and fragments memory
+    */
+    String url;
+
+    if (config.llmconfig.base_url && 
+        config.llmconfig.api_endpoint && 
+        config.llmconfig.version) {
+
+        url = String(config.llmconfig.base_url) + "/" + 
+                    config.llmconfig.version + "/" + 
+                    config.llmconfig.api_endpoint;
+
+    } else {
+        if (config.llmconfig.version) {
+            url = String(default_base_url) + "/" + 
+                        config.llmconfig.version + "/" + 
+                        default_endpoint;
+        } else {
+            url = String(default_base_url) + "/" + 
+                        default_version + "/" + 
+                        default_endpoint;
+        }
     }
+    
+    char auth_header_value[64];
+    snprintf(auth_header_value, sizeof(auth_header_value), "Bearer %s", config.llmconfig.api_key);
+
+    const char* authorization_header = auth_header_value;
+
+    const char* headers[][2] = {
+    {"Content-Type", "application/json"},
+    {"Authorization", authorization_header},
+    {NULL, NULL}
+    };
+
+    ___init(url, headers);
+    
+}
+
+String LLMClient::prompt_openai_gpt(){
+
+    return  ___request(&config, build_openai_request, parse_openai_response); 
+}
+
+String LLMClient::prompt(String promptText)
+{
+    config.llmdata.prompt = promptText.c_str(); 
+#ifdef USE_GOOGLE_CLIENT    
+    if(config.llmconfig.provider == GOOGLE_GEMINI){
+        return prompt_google_gemini();
+    }
+#endif
+
+#ifdef USE_OPENAI_CLIENT
+    if(config.llmconfig.provider == OPENAI_GPT){
+        return prompt_openai_gpt();
+    }
+#endif    
+    Serial.println("Selected model is not supported");
+    return String();
 }
 
 LLMClient::~LLMClient() {
+    LLMClient::httpClient.end();
 }
+
