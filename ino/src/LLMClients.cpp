@@ -82,20 +82,18 @@ String LLMClient::___request(LLMClientConfig* config,
 
     String request = String(build_request(config));
     if (request.length() == 0) {
-        Serial.println("Failed to build request");
+        WRITE_LAST_ERROR("Failed to build request");
         return String();
     }
-    Serial.println(request);
+    DEBUG_WRITE(request);
 
     int httpCode = httpClient.POST(request);
     String response = "";
     if (httpCode > 0) {
         response = httpClient.getString();
-        Serial.print("httpCode > 0: ");
-        Serial.println(httpCode);
+        DEBUG_WRITE("httpCode > 0: ");
     } else {
-        Serial.print("Error in HTTP request: code = ");
-        Serial.println(httpCode);
+        WRITE_LAST_ERROR("Error in HTTP request: code <0");
         return String();
     }
     if(config->llmdata.response.return_raw > 0){
@@ -125,7 +123,7 @@ void LLMClient::init_google_client() {
 }
 String LLMClient::prompt_google_gemini() {
     
-    return  ___request(&config, google_generate_url, headers, build_google_request, parse_google_response); 
+    return  ___request(&config, build_google_request, parse_google_response); 
 }
 #endif
 
@@ -193,7 +191,7 @@ String LLMClient::prompt(String promptText)
         return prompt_openai_gpt();
     }
 #endif    
-    Serial.println("Selected model is not supported");
+    WRITE_LAST_ERROR("Selected model is not supported");
     return String();
 }
 
