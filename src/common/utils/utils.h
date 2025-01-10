@@ -11,8 +11,9 @@ extern "C" {
 #endif
 
 //debugging 
-void llmclients_lib_write_last_error(const char *error_string);
-const char *llmclients_lib_read_last_error();
+void __attribute__((weak)) llmclients_write_last_error(const char *error_string);
+
+void __attribute__((weak)) llmclients_debug_write(const char *debug_string);
 
 //base64 enc/dec
 char *base64_encode(const unsigned char *data, size_t input_length);
@@ -21,12 +22,8 @@ unsigned char *base64_decode(const char *data, size_t *output_length);
 }
 #endif
 
-#ifdef LLM_CLIENT_LIB_ENABLE_LOGGING
-#define WRITE_LAST_ERROR(err) llmclients_lib_write_last_error(err)
-#define READ_LAST_ERROR()   llmclients_lib_read_last_error()
-#else
-#define WRITE_LAST_ERROR(err)
-#define READ_LAST_ERROR()
-#endif
+#define WRITE_LAST_ERROR(err)   llmclients_write_last_error(err)
+#define DEBUG_WRITE(err)        llmclients_debug_write(err)
+
 
 #endif
