@@ -10,6 +10,7 @@
 - [Supporting other providers](#supporting-other-providers)
 - [Debugging The Library](#debugging)
 - [Examples](#examples)
+- [Porting and Baremetal Usage](#porting-and-baremetal-usage)
 
 ## Objects
 
@@ -325,7 +326,11 @@ void llmclients_write_last_error(const char *err) {
 
 ## Examples 
 
+## Porting and Baremetal Usage
+The code in ./common is platform independent and provides code templates for building and parsing api requests of the supported providers. The platform dependent part of the libary provides hardware depended functionalities like http client and resource management so these functions can be used directly although you have to handle the hardware dependent parts yourself. A few things to keep in mind:
 
+- char build_\*_request(LLMClientConfig* configs): constructs a json request structure using the configuration passed to it via configs. It returns a dynamically allocated json request structure. It is the callers responsibility to free it using free()
 
+- char parse_\*_response(LLMClientConfig* configs, char*response): parses the response from the respective providerr configured in configs. Returns the dynamically allocated string and must be freed using free()
 
-
+- LLMClientConfig.user_state is used to track the messages between the model and user when chat is enabled. This memory is dynamically allocated and is a cJSON object. Free it with cJSON_Delete() when chat is no longer needed or done with prompting.
