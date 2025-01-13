@@ -30,6 +30,8 @@
 #include "http-rest-api.h"
 
 
+#include "utils/utils.h"
+
 #define TAG "api-cli"
 
 QueueHandle_t http_event_queue;
@@ -46,19 +48,25 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
 
     switch (evt->event_id) {
         case HTTP_EVENT_ERROR:
-            ESP_LOGI(TAG, "HTTP_EVENT_ERROR");
+            DEBUG_WRITE("HTTP_EVENT_ERROR"); 
+            int mbedtls_err = 0;
+            esp_err_t err = esp_tls_get_and_clear_last_error((esp_tls_error_handle_t)evt->data, &mbedtls_err, NULL);
+            if (err != 0) {
+                ESP_LOGE(TAG, "Last esp error code: 0x%x", err);
+                ESP_LOGE(TAG, "Last mbedtls failure: 0x%x", mbedtls_err);
+            }            
             break;
 
         case HTTP_EVENT_ON_CONNECTED:
-            ESP_LOGI(TAG, "HTTP_EVENT_ON_CONNECTED");
+            DEBUG_WRITE("HTTP_EVENT_ON_CONNECTED");
             break;
 
         case HTTP_EVENT_HEADER_SENT:
-            ESP_LOGI(TAG, "HTTP_EVENT_HEADER_SENT");
+            DEBUG_WRITE("HTTP_EVENT_HEADER_SENT");
             break;
 
         case HTTP_EVENT_ON_HEADER: {
-            ESP_LOGI(TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key, evt->header_value);
+            DEBUG_WRITE("HTTP_EVENT_ON_HEADER");
 
             // Create a header event message
             http_event_message_t msg = {0};
@@ -72,7 +80,7 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
         }
 
         case HTTP_EVENT_ON_FINISH: {
-            ESP_LOGI(TAG, "HTTP_EVENT_ON_FINISH");
+            DEBUG_WRITE("HTTP_EVENT_ON_FINISH");
 
             // Create a completion event message, carries the http response body
             http_event_message_t msg = {0};
@@ -83,14 +91,11 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
             //it is the responsibility of the queue consumer to release up this memory
             msg.data.finish.body = malloc(output_len + 1);
             if(msg.data.finish.body==NULL){
-                ESP_LOGE(TAG, "malloc'ing space for body failed");
+                DEBUG_WRITE("malloc'ing space for body failed");
                 break;
             }
             strcpy(msg.data.finish.body, buf);
             output_len = 0;
-
-            //ESP_LOGI(TAG, "buf: %s", buf);
-            //ESP_LOGI(TAG, "msg.data.finish.body: %s", msg.data.finish.body);
             
 
             xQueueSend(http_event_queue, &msg, portMAX_DELAY); // Block until the queue is ready
@@ -98,7 +103,7 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
         }
 
         case HTTP_EVENT_ON_DATA:
-            ESP_LOGI(TAG, "HTTP_EVENT_ON_DATA");
+            DEBUG_WRITE("HTTP_EVENT_ON_DATA");
 
             int copy_len = 0;
             copy_len = MIN(evt->data_len, (MAX_HTTP_RESPONSE_LENGTH - output_len));
@@ -110,14 +115,7 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
             break;
 
         case HTTP_EVENT_DISCONNECTED: {
-            ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
-
-            int mbedtls_err = 0;
-            esp_err_t err = esp_tls_get_and_clear_last_error((esp_tls_error_handle_t)evt->data, &mbedtls_err, NULL);
-            if (err != 0) {
-                ESP_LOGI(TAG, "Last esp error code: 0x%x", err);
-                ESP_LOGI(TAG, "Last mbedtls failure: 0x%x", mbedtls_err);
-            }
+            DEBUG_WRITE("HTTP_EVENT_DISCONNECTED");
             break;
         }
 
