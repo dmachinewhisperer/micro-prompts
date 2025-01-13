@@ -4,10 +4,12 @@
 
 #include "../cJSON/cJSON.h"
 #include "../utils/utils.h"
-
 #include "google.h"
 
-#include "../tests/memory.h" //for testing
+#ifdef BUILD_FOR_TESTING
+#include "../tests/test_memory.h" //header for running memory bug tests
+#endif
+
 /**
 API endpoint
 const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent';
@@ -163,7 +165,7 @@ char *build_google_request(LLMClientConfig *config) {
 
     // Add fields based on selected feature
     if (config->llmconfig.feature == TEXT_INPUT_WITH_REMOTE_FILE) {
-        if(config->llmdata.file.mime==NULL || config->llmdata.file.uri){
+        if((config->llmdata.file.mime==NULL) || (config->llmdata.file.uri==NULL)){
             WRITE_LAST_ERROR("build_google_request: Error: TEXT_INPUT_WITH_REMOTE_FILE: file properties(mime, uri) not set");
             goto cleanup;
         }        
@@ -184,7 +186,7 @@ char *build_google_request(LLMClientConfig *config) {
         cJSON_AddStringToObject(file_data, "file_uri", config->llmdata.file.uri);
     }
     else if (config->llmconfig.feature == TEXT_INPUT_WITH_LOCAL_FILE) {
-        if(config->llmdata.file.mime==NULL || config->llmdata.file.data || config->llmdata.file.nbytes==0){
+        if((config->llmdata.file.mime==NULL) || (config->llmdata.file.data==NULL) || (config->llmdata.file.nbytes==0)){
             WRITE_LAST_ERROR("build_google_request: Error: TEXT_INPUT_WITH_REMOTE_FILE: file properties(mime,uri,nbytes) not set");
             goto cleanup;
         }        

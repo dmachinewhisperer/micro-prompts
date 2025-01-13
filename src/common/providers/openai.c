@@ -1,3 +1,15 @@
+#include <stddef.h>
+#include <string.h>
+#include <stdbool.h>
+
+#include "../cJSON/cJSON.h"
+#include "../utils/utils.h"
+#include "openai.h"
+
+#ifdef BUILD_FOR_TESTING
+#include "../tests/test_memory.h" //header for running memory bug tests
+#endif
+
 /**
  * // API endpoint 'https://api.openai.com/v1/chat/completions';
  * API Docs: https://platform.openai.com/docs/api-reference/chat/create
@@ -88,16 +100,6 @@ const request = {
 
  */
 
-#include <stddef.h>
-#include <string.h>
-#include <stdbool.h>
-
-#include "../cJSON/cJSON.h"
-#include "../utils/utils.h"
-
-#include "openai.h"
-
-
 
 char *build_openai_request(LLMClientConfig *config) {
 
@@ -139,7 +141,7 @@ char *build_openai_request(LLMClientConfig *config) {
 
     //add system prompt if available
     cJSON *system = NULL; 
-    if(config->llmdata.system){
+    if(config->llmdata.system!=NULL){
         system = cJSON_CreateObject();
         if (system == NULL) {
             WRITE_LAST_ERROR("build_openai_request: Error: system == NULL");
@@ -196,7 +198,7 @@ char *build_openai_request(LLMClientConfig *config) {
         cJSON_AddStringToObject(image_url, "detail", "low");
     }
     else if (config->llmconfig.feature == TEXT_INPUT_WITH_LOCAL_IMG) {
-        if(config->llmdata.file.mime == NULL || config->llmdata.file.data == NULL || config->llmdata.file.nbytes==0){
+        if((config->llmdata.file.mime == NULL) || (config->llmdata.file.data == NULL) || (config->llmdata.file.nbytes==0)){
             WRITE_LAST_ERROR("build_openai_request: Error: TEXT_INPUT_WITH_LOCAL_IMG: required file properties(mime,data,nbytes) not set");
             goto cleanup;
         }
@@ -219,7 +221,7 @@ char *build_openai_request(LLMClientConfig *config) {
         const char *base64_data = base64_encode(config->llmdata.file.data, 
                                               config->llmdata.file.nbytes);
         char *url = (char*)malloc(strlen(base64_data) + 30); // Extra space for prefix
-        if(base64_data==NULL || url==NULL){
+        if((base64_data==NULL) || (url==NULL)){
             WRITE_LAST_ERROR("build_openai_request: Error: TEXT_INPUT_WITH_LOCAL_IMG: base64_data encoding failed");
             if(base64_data) free((void*)base64_data);
             if(url) free((void*)url);
@@ -235,7 +237,7 @@ char *build_openai_request(LLMClientConfig *config) {
         free((void*)url);
     }
     else if (config->llmconfig.feature == TEXT_INPUT_WITH_LOCAL_AUDIO) {
-        if(config->llmdata.file.mime == NULL || config->llmdata.file.data == NULL || config->llmdata.file.nbytes==0){
+        if((config->llmdata.file.mime == NULL) || (config->llmdata.file.data == NULL) || (config->llmdata.file.nbytes==0)){
             WRITE_LAST_ERROR("build_openai_request: Error: TEXT_INPUT_WITH_LOCAL_AUDIO: required file properties(mime,data,nbytes) not set");
             goto cleanup;
         }        
@@ -305,7 +307,7 @@ char *build_openai_request(LLMClientConfig *config) {
             WRITE_LAST_ERROR("build_openai_request: Error creating user_state");
             goto cleanup;
         }       
-        if(system){
+        if(system!=NULL){
             cJSON_AddItemToArray(config->user_state, system);
         } 
       }
@@ -338,7 +340,6 @@ char *build_openai_request(LLMClientConfig *config) {
        }
         cJSON_AddItemToArray(messages, message);
 
-        //add system prompt
     }
 
     cJSON_AddItemToObject(root, "messages", messages);
@@ -358,7 +359,11 @@ char *build_openai_request(LLMClientConfig *config) {
     //bin due to the circular dependency. instead we detach all the elements  from bin before cleanup
     cJSON_DetachItemFromArray(bin, 0); 
     cJSON_DetachItemFromArray(bin, 0);
-    cJSON_DetachItemFromArray(bin, 0); //third call should return NULL in cases where system prompt is not available
+
+    if(system){
+        cJSON_DetachItemFromArray(bin, 0); //third call should return NULL in cases where system prompt is not available
+ 
+    }
     cJSON_Delete(root);
     cJSON_Delete(bin);
 
