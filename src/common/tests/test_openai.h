@@ -154,8 +154,8 @@ void test_openai_gpt() {
     parsed = parse_openai_response(&llm, error_response);
     assert(parsed == NULL); 
 
-    // --- TEST CASE 5: Response Parsing ---
-    printf("// --- TEST CASE 5: Response Parsing ---\n");
+    // --- TEST CASE 5: Chat usage and Parsing ---
+    printf("// --- TEST CASE 6: Response Parsing ---\n");
     llm.llmconfig.chat =  5;
     llm.llmconfig.feature = TEXT_INPUT;
     llm.llmdata.prompt = "How do I prepare biriyani?";
