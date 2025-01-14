@@ -242,6 +242,7 @@ char *build_google_request(LLMClientConfig *config) {
         }
       } 
       contents = (cJSON*)config->user_state; 
+      cJSON_DetachItemFromArray(bin, 1); //detach content
       cJSON_AddItemToArray(contents, content);
 
       //trim contents(config->user_state)  to save heap 
@@ -264,6 +265,7 @@ char *build_google_request(LLMClientConfig *config) {
             WRITE_LAST_ERROR("build_google_request: Error: contents==NULL");
             goto cleanup;
         }
+        cJSON_DetachItemFromArray(bin, 1); //detach content
         cJSON_AddItemToArray(contents, content);
     }
 
@@ -284,9 +286,9 @@ char *build_google_request(LLMClientConfig *config) {
     
     //since content have been bound to root indirectly, we cannot directly delete 
     //bin due to the circular dependency. instead we detach content  from bin before cleanup
-    cJSON_DetachItemFromArray(bin, 0); 
-    cJSON_DetachItemFromArray(bin, 0);
-    cJSON_Delete(root);
+    //cJSON_DetachItemFromArray(bin, 0); 
+    //cJSON_DetachItemFromArray(bin, 0);
+    //cJSON_Delete(root);
 
     cJSON_Delete(bin);
 

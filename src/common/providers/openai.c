@@ -112,9 +112,16 @@ char *build_openai_request(LLMClientConfig *config) {
     if(config->llmconfig.max_tokens > MAX_LLM_OUTPUT_TOKENS) {
         config->llmconfig.max_tokens = MAX_LLM_OUTPUT_TOKENS;
     }
+    // ensure prompt text is specified
+    if(config->llmdata.prompt==NULL){
+        WRITE_LAST_ERROR("build_openai_request: Error: llmdata.prompt==NULL");
+        return NULL;
+    }
 
-    //objects that are not bound to a parent immediately after creation 
-    //must be tracked in the bin array to simplify early returns
+    //orphan objects that are not yet bound to a parent must be tracked in bin
+    //to simplify cleanup upon early returns. BEFORE adding to a parent node, must be detached
+    //immediately to prevent circular dependencies (an an unexpected behaviour of cJSON_Print) from
+    //this bug report: https://
     cJSON *bin = cJSON_CreateArray();
     if(bin==NULL){
         WRITE_LAST_ERROR("build_openai_request: Error: bin==NULL");
@@ -123,13 +130,13 @@ char *build_openai_request(LLMClientConfig *config) {
     // Create root object
     cJSON *root = cJSON_CreateObject();
     if (root == NULL) {
-        WRITE_LAST_ERROR("build_openai_request: Error creating json root");
+        WRITE_LAST_ERROR("build_openai_request: Error:root==NULL");
         goto cleanup;
     }
     cJSON_AddItemToArray(bin, root);
 
     cJSON_AddStringToObject(root, "model", config->llmconfig.model_name);
-  
+
 
     // Create user message object
     cJSON *message = cJSON_CreateObject();
@@ -140,16 +147,16 @@ char *build_openai_request(LLMClientConfig *config) {
     cJSON_AddItemToArray(bin, message);
 
     //add system prompt if available
-    cJSON *system = NULL; 
+    cJSON *system_prompt = NULL; 
     if(config->llmdata.system!=NULL){
-        system = cJSON_CreateObject();
-        if (system == NULL) {
-            WRITE_LAST_ERROR("build_openai_request: Error: system == NULL");
+        system_prompt = cJSON_CreateObject();
+        if (system_prompt == NULL) {
+            WRITE_LAST_ERROR("build_openai_request: Error: system_prompt==NULL");
             goto cleanup;
         } 
-        cJSON_AddItemToArray(bin, system);
-        cJSON_AddStringToObject(system, "role", "assistant");
-        cJSON_AddStringToObject(system, "content", config->llmdata.system);
+        cJSON_AddItemToArray(bin, system_prompt);
+        cJSON_AddStringToObject(system_prompt, "role", "assistant");
+        cJSON_AddStringToObject(system_prompt, "content", config->llmdata.system);
 
     }    
     cJSON_AddStringToObject(message, "role", "user");
@@ -199,7 +206,7 @@ char *build_openai_request(LLMClientConfig *config) {
     }
     else if (config->llmconfig.feature == TEXT_INPUT_WITH_LOCAL_IMG) {
         if((config->llmdata.file.mime == NULL) || (config->llmdata.file.data == NULL) || (config->llmdata.file.nbytes==0)){
-            WRITE_LAST_ERROR("build_openai_request: Error: TEXT_INPUT_WITH_LOCAL_IMG: required file properties(mime,data,nbytes) not set");
+            WRITE_LAST_ERROR("build_openai_request: Error: TEXT_INPUT_WITH_LOCAL_IMG: all required file properties(mime,data,nbytes) not set");
             goto cleanup;
         }
         cJSON *image_content = cJSON_CreateObject();
@@ -220,7 +227,7 @@ char *build_openai_request(LLMClientConfig *config) {
         //attach base64 data
         const char *base64_data = base64_encode(config->llmdata.file.data, 
                                               config->llmdata.file.nbytes);
-        char *url = (char*)malloc(strlen(base64_data) + 30); // Extra space for prefix
+        char *url = (char*)malloc(strlen(base64_data) + 30); //extra space for prefix
         if((base64_data==NULL) || (url==NULL)){
             WRITE_LAST_ERROR("build_openai_request: Error: TEXT_INPUT_WITH_LOCAL_IMG: base64_data encoding failed");
             if(base64_data) free((void*)base64_data);
@@ -307,11 +314,12 @@ char *build_openai_request(LLMClientConfig *config) {
             WRITE_LAST_ERROR("build_openai_request: Error creating user_state");
             goto cleanup;
         }       
-        if(system!=NULL){
-            cJSON_AddItemToArray(config->user_state, system);
+        if(system_prompt!=NULL){
+            cJSON_DetachItemFromArray(bin, 2); //detach system_prompt
+            cJSON_AddItemToArray(config->user_state, system_prompt);
         } 
       }
-       
+      cJSON_DetachItemFromArray(bin, 1); //detach message
       messages = (cJSON*)config->user_state; 
       cJSON_AddItemToArray(messages, message);
 
@@ -335,10 +343,14 @@ char *build_openai_request(LLMClientConfig *config) {
         WRITE_LAST_ERROR("build_openai_request: Error: messages == NULL");
         goto cleanup;
         }
-        if(system){
-            cJSON_AddItemToArray(messages, system);
-       }
+        if(system_prompt!=NULL){
+            cJSON_DetachItemFromArray(bin, 2); //detach system_prompt
+            cJSON_AddItemToArray(messages, system_prompt);
+            
+        }
+        cJSON_DetachItemFromArray(bin, 1); //detach message
         cJSON_AddItemToArray(messages, message);
+        
 
     }
 
@@ -350,21 +362,15 @@ char *build_openai_request(LLMClientConfig *config) {
     cJSON_AddNumberToObject(root, "top_p", config->llmconfig.top_p);
     cJSON_AddNumberToObject(root, "max_tokens", config->llmconfig.max_tokens);
 
+    
+    //cJSON_PrintUnformatted
     char *request_str = cJSON_Print(root);
     if(request_str ==NULL){
         WRITE_LAST_ERROR("build_openai_request: Error: failed to allocate memory for request_str");
-    }
-    
-    //since message and possibly system have been bound to root indirectly, we cannot directly delete 
-    //bin due to the circular dependency. instead we detach all the elements  from bin before cleanup
-    cJSON_DetachItemFromArray(bin, 0); 
-    cJSON_DetachItemFromArray(bin, 0);
+    }  
 
-    if(system){
-        cJSON_DetachItemFromArray(bin, 0); //third call should return NULL in cases where system prompt is not available
- 
-    }
-    cJSON_Delete(root);
+    //cJSON_DetachItemFromArray(bin, 0); //detach root
+    //cJSON_Delete(root);
     cJSON_Delete(bin);
 
     //responsibility lies on the caller to free request_str
