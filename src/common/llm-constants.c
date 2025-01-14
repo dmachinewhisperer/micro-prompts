@@ -20,6 +20,7 @@ const LLMClientConfig DEFAULT_LLMCLIENT_CONFIG = {
     },
     .llmdata = {                           
         .prompt = NULL,
+        .system = NULL,
         .file = {
             .data = NULL,
             .mime = NULL,

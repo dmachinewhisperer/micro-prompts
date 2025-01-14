@@ -1,6 +1,7 @@
 #ifndef LLM_PROMPTING_LIB_TYPES_H_
 #define LLM_PROMPTING_LIB_TYPES_H_
 #include <stdint.h>
+#include <stddef.h>
 
 
 //the max_tokens specified here is just not arbitary. Http clients are configured with a max  
@@ -17,8 +18,6 @@ typedef enum{
     GROK,
     GOOGLE_GEMINI,
     OPENAI_GPT,
-    DEEPSEEK,
-    HUGGING_FACE,
 } ProviderName;
 
 //global feature pool
@@ -57,6 +56,7 @@ typedef struct {
 // Data associated with the model
 typedef struct {
     const char *prompt;
+    const char *system; //system prompt
     struct {
         size_t nbytes;
         const char *uri;
