@@ -6,9 +6,9 @@
 //}
 
 int main() {
-    //printf("==========RUNNING test_google_gemini");
-    //test_google_gemini();
-    printf("==========RUNNING test_openai_gpt");
+    printf("==========RUNNING test_google_gemini\n");
+    test_google_gemini();
+    printf("==========RUNNING test_openai_gpt\n");
     test_openai_gpt();
     return 0;
 }
