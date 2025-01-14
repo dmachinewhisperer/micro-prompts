@@ -1,4 +1,4 @@
-all: run_python_script run_build_script
+all: run_build_script
 
 run_python_script:
 	@echo "Prepping /providers/google.c for build..."
@@ -7,10 +7,23 @@ run_python_script:
 	python3 prep_files.py ../providers/openai.c || exit 1
 	@echo "Done."
 
-run_build_script: run_python_script
+restore:
+	@echo "Restoring /providers/google.c for build..."
+	python3 prep_files.py ../providers/google.c --rev || exit 1
+	@echo "Restoring /providers/openai.c for build..."
+	python3 prep_files.py ../providers/openai.c --rev || exit 1
+	@echo "Done."
+
+run_build_script:
 	@echo "Running build script compile.sh..."
 	./compile.sh || exit 1
 	@echo "Done."
+
+real: run_build_script
+	@echo "Building the real project..."
+
+test: run_python_script run_build_script
+	@echo "Building the test project..."
 
 run: all
 	@echo "Running the program..."
@@ -22,6 +35,6 @@ valgrind: all
 
 clean:
 	@echo "Cleaning up..."
-	#
+	# Add cleanup commands here (e.g., remove temporary files)
 
-.PHONY: all run_python_script run_build_script clean run valgrind
+.PHONY: all run_python_script run_build_script clean run valgrind real test
