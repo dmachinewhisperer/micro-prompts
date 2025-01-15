@@ -1,68 +1,16 @@
 #include "LLMClients.h"
-//#include "common/providers/google.h"
-#include "common/providers/openai.h"
 #include "common/utils/utils.h"
+#include "common/providers/google.h"
+#include "common/providers/openai.h"
+
 #define MAX_HTTP_RESPONSE_LENGTH 3 * 1024
 
+static void ___init(HTTPClient& httpClient, 
+#ifdef ESP8266
+                    WiFiClientSecure& wifiClient, 
+#endif                    
+                    String url, const char* headers[][2]){
 
-
-LLMClient::LLMClient() {
-    config = DEFAULT_LLMCLIENT_CONFIG;
-}
-
-void LLMClient::begin(const char *apiKey, const char *modelName, ProviderName provider) {
-
-    config.llmconfig.api_key = apiKey;
-    config.llmconfig.model_name = modelName;
-    config.llmconfig.provider = provider;    
-
-#ifdef USE_GOOGLE_CLIENT
-    init_google_client();
-#endif
-#ifdef USE_OPENAI_CLIENT
-    init_openai_client();
-#endif    
-}
-
-void LLMClient::setTemperature(float temp) {
-    config.llmconfig.temperature = temp;
-}
-
-void LLMClient::setMaxTokens(int maxTokens) {
-    config.llmconfig.max_tokens = maxTokens;
-}
-
-void LLMClient::setProviderFeature(GlobalFeaturePool feature) {
-    config.llmconfig.feature = feature;
-}
-
-void LLMClient::setJSONResponseSchema(const char *json) {
-    config.llmconfig.json_response_schema = json;
-    config.llmconfig.structured_output = 1; 
-}
-
-//must be called before ::begin() if using different endpoints
-void LLMClient::setProviderURL(const char *base, const char *version, const char *endpoint){
-    config.llmconfig.base_url = base;
-    config.llmconfig.version = version;
-    config.llmconfig.api_endpoint = endpoint;
-}
-void LLMClient::setFileProperties(const char *mime, const char *uri, const char *data, size_t nbytes){
-    config.llmdata.file.mime = mime; 
-    config.llmdata.file.uri = uri;
-    config.llmdata.file.data = (const unsigned char*)data;
-    config.llmdata.file.nbytes = nbytes;
-
-}
-
-void LLMClient::retainChatContext(int nchat_msgs){
-    config.llmconfig.chat = nchat_msgs; 
-}
-void LLMClient::returnRawResponse(){
-    config.llmdata.response.return_raw = 1; 
-}
-
-void LLMClient::___init(String url, const char* headers[][2]){
 #ifdef ESP32
         httpClient.begin(url);
 #elif defined(ESP8266)
@@ -75,17 +23,19 @@ void LLMClient::___init(String url, const char* headers[][2]){
     }
 }
 
-String LLMClient::___request(LLMClientConfig* config,
+static String ___request(HTTPClient& httpClient, LLMClientConfig* config,
                        char* (*build_request)(LLMClientConfig*), 
                        char* (*parse_response)(LLMClientConfig*, const char*)){
-
-
+    if(!config || !build_request || !parse_response )    {
+        WRITE_LAST_ERROR("invalid function parameters");
+        return String();
+    }                
     String request = String(build_request(config));
     if (request.length() == 0) {
         WRITE_LAST_ERROR("Failed to build request");
         return String();
     }
-    DEBUG_WRITE(request);
+    DEBUG_WRITE(request.c_str());
 
     int httpCode = httpClient.POST(request);
     String response = "";
@@ -109,8 +59,9 @@ String LLMClient::___request(LLMClientConfig* config,
 
 }
 
-#ifdef USE_GOOGLE_CLIENT
-void LLMClient::init_google_client() {
+
+void GoogleClient::init() {
+    config.llmconfig.provider = GOOGLE_GEMINI;
     const char *base_url = "https://generativelanguage.googleapis.com";
     String url = String(base_url) + "/v1beta/models/" +
                                  config.llmconfig.model_name + ":generateContent?key=" + config.llmconfig.api_key;
@@ -119,15 +70,20 @@ void LLMClient::init_google_client() {
     {"Content-Type", "application/json"},
     {NULL, NULL}
     };
-    ___init(url, headers);
+    ___init(httpClient, 
+#ifdef ESP8266    
+            wifiClient, 
+#endif            
+            url, headers);
 }
-String LLMClient::prompt_google_gemini() {
-    
-    return  ___request(&config, build_google_request, parse_google_response); 
-}
-#endif
+String GoogleClient::prompt() {
 
-void LLMClient::init_openai_client(){
+    return  ___request(httpClient, &config, build_google_request, parse_google_response); 
+}
+
+
+void OpenaiClient::init(){
+    config.llmconfig.provider = OPENAI_GPT;
     const char *default_base_url = "https://api.openai.com";
     const char *default_version = "v1";
     const char *default_endpoint = "chat/completions";
@@ -168,34 +124,16 @@ void LLMClient::init_openai_client(){
     {NULL, NULL}
     };
 
-    ___init(url, headers);
+    ___init(httpClient, 
+#ifdef ESP8266    
+            wifiClient, 
+#endif            
+            url, headers);
     
 }
 
-String LLMClient::prompt_openai_gpt(){
+String OpenaiClient::prompt(){
 
-    return  ___request(&config, build_openai_request, parse_openai_response); 
-}
-
-String LLMClient::prompt(String promptText)
-{
-    config.llmdata.prompt = promptText.c_str(); 
-#ifdef USE_GOOGLE_CLIENT    
-    if(config.llmconfig.provider == GOOGLE_GEMINI){
-        return prompt_google_gemini();
-    }
-#endif
-
-#ifdef USE_OPENAI_CLIENT
-    if(config.llmconfig.provider == OPENAI_GPT){
-        return prompt_openai_gpt();
-    }
-#endif    
-    WRITE_LAST_ERROR("Selected model is not supported");
-    return String();
-}
-
-LLMClient::~LLMClient() {
-    LLMClient::httpClient.end();
+    return  ___request(httpClient, &config, build_openai_request, parse_openai_response); 
 }
 

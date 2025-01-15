@@ -11,47 +11,114 @@
 
 #include <WiFiClientSecure.h>
 #include <common/llm-types.h>
+#include "common/cJSON/cJSON.h"
 
-//#define USE_GOOGLE_CLIENT
-#define USE_OPENAI_CLIENT
+template<typename ClientType>
+class LLMClient;
 
-class LLMClient {
-private:
+class LLMClientBase {
+protected:
     HTTPClient httpClient;
+#ifdef ESP8266    
     WiFiClientSecure wifiClient;
-
+#endif    
     LLMClientConfig config;
-
-    void ___init(String url, const char* headers[][2]);
-    String ___request(LLMClientConfig* config,
-                       char* (*build_request)(LLMClientConfig*), 
-                       char* (*parse_response)(LLMClientConfig*, const char*));
-
-#ifdef USE_GOOGLE_CLIENT 
-    void init_google_client();       
-    String prompt_google_gemini();
-#endif
-#ifdef USE_OPENAI_CLIENT
-    void init_openai_client();
-    String prompt_openai_gpt();
-#endif
 public:
-    LLMClient();
-    void begin(const char *apiKey, const char *modelName, ProviderName provider);
+    virtual void init() = 0;
+    virtual String prompt() = 0;
+    virtual ~LLMClientBase() = default;
+};
 
-    void setFileProperties(const char *mime, const char *uri, const char *data, size_t nbytes);
-    void setProviderURL(const char *base, const char *version, const char *endpoint);
-    void setProviderFeature(GlobalFeaturePool feature);
-    void setJSONResponseSchema(const char *json);
-    void setTemperature(float temperature);
-    void setMaxTokens(int maxTokens);
-    void setTopP(float topP);
-    void setTopK(int topK);
-    void retainChatContext(int nchat_msgs);
-    void returnRawResponse();
-    String prompt(String promptText);
+class GoogleClient : public LLMClientBase {
+private:
+    friend class LLMClient<GoogleClient>;
+public:
+    void init() override;
+    String prompt() override;
+};
 
-    ~LLMClient();
+class OpenaiClient : public LLMClientBase {
+private:
+    friend class LLMClient<OpenaiClient>;
+public:
+    void init() override;
+    String prompt() override;
+};
+
+template <typename ClientType>
+class LLMClient {
+    static_assert(std::is_base_of<LLMClientBase, ClientType>::value, 
+                                "ClientType must inherit from LLMClientBase");
+private:
+    ClientType client;
+public:
+    LLMClient() {
+        client.config = DEFAULT_LLMCLIENT_CONFIG;
+    }
+
+    void begin(const char *apiKey, const char *modelName) {
+        client.config.llmconfig.api_key = apiKey;
+        client.config.llmconfig.model_name = modelName;  
+        client.init();
+    }
+
+    void setTemperature(float temp) {
+        client.config.llmconfig.temperature = temp;
+    }
+     
+    void setMaxTokens(int maxTokens) {
+        client.config.llmconfig.max_tokens = maxTokens;
+    }
+
+     
+    void setProviderFeature(GlobalFeaturePool feature) {
+        client.config.llmconfig.feature = feature;
+    }
+     
+    void setJSONResponseSchema(const char *json) {
+        client.config.llmconfig.json_response_schema = json;
+        client.config.llmconfig.structured_output = 1; 
+    }
+    
+    void setProviderURL(const char *base, const char *version, const char *endpoint){
+        client.config.llmconfig.base_url = base;
+        client.config.llmconfig.version = version;
+        client.config.llmconfig.api_endpoint = endpoint;
+    }
+     
+    void setFileProperties(const char *mime, const char *uri, const char *data, size_t nbytes){
+        client.config.llmdata.file.mime = mime; 
+        client.config.llmdata.file.uri = uri;
+        client.config.llmdata.file.data = (const unsigned char*)data;
+        client.config.llmdata.file.nbytes = nbytes;
+
+    }
+     
+    void retainChatContext(int nchat_msgs){
+        client.config.llmconfig.chat = nchat_msgs; 
+    }
+
+    void returnRawResponse(){
+        client.config.llmdata.response.return_raw = 1; 
+    }
+  
+    void setSystemPrompt(const char *system){
+        client.config.llmdata.system = system; 
+    }
+
+    String prompt(String promptText)
+    {
+        client.config.llmdata.prompt = promptText.c_str(); 
+        return client.prompt();
+    }
+     
+    ~LLMClient() {
+        client.httpClient.end();
+        if(client.config.user_state!=NULL){
+            cJSON_Delete((cJSON*)client.config.user_state);
+        }
+    }
+
 };
 
 #endif // LLM_CLIENT_H
